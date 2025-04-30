@@ -1,0 +1,59 @@
+# Basic configuration
+instance_name = "web-server"
+ami_id        = "ami-12345678"
+vpc_id        = "vpc-12345678"
+environment   = "dev"
+
+# Network configuration for single instance
+subnet_id                   = "subnet-12345678"
+associate_public_ip_address = true
+create_elastic_ip           = true
+
+# Network configuration for Auto Scaling Group
+# subnet_ids = ["subnet-12345678", "subnet-87654321"]
+
+# Security configuration
+create_security_group = true
+enable_http_access    = true
+enable_https_access   = true
+ssh_cidr_blocks       = ["10.0.0.0/16"]  # Restrict SSH access to VPC
+
+# Right-sizing configuration
+workload_profile = "medium"  # Options: small, medium, large, xlarge, compute-optimized, memory-optimized
+# instance_type = "t3.medium"  # Override the instance type from the workload profile
+# override_instance_types = ["t3.medium", "t3a.medium", "t2.medium"]  # For mixed instances policy
+
+# Autoscaling configuration
+enable_autoscaling     = false  # Set to true to use Auto Scaling Group instead of single instance
+min_size              = 1
+max_size              = 5
+desired_capacity      = 2
+enable_scaling_policies = true
+high_cpu_threshold     = 75
+low_cpu_threshold      = 25
+
+# Spot instances for cost optimization
+use_spot_instances    = false
+# spot_price           = "0.05"  # Maximum price per hour
+on_demand_base_capacity = 1
+on_demand_percentage_above_base_capacity = 50
+
+# Volume configuration
+root_volume_size      = 30
+root_volume_type      = "gp3"
+root_volume_encrypted = true
+
+# Monitoring
+enable_detailed_monitoring = true
+
+# Cost allocation tags
+cost_center   = "IT-123"
+project       = "Web Application"
+owner         = "DevOps Team"
+business_unit = "Engineering"
+
+# Additional tags
+additional_tags = {
+  ManagedBy = "Terraform"
+  Backup    = "true"
+}
