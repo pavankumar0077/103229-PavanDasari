@@ -1,6 +1,6 @@
 # Terraform AWS EC2 Instance
 
-This repository contains Terraform configurations to deploy EC2 instances on AWS following best practices, with support for right-sizing, autoscaling, and cost tracking.
+This repository contains Terraform configurations to deploy EC2 instances on AWS following best practices, with support for right-sizing, autoscaling, cost tracking, and AWS Secrets Manager integration for sensitive data.
 
 ## Project Structure
 
@@ -21,7 +21,8 @@ This repository contains Terraform configurations to deploy EC2 instances on AWS
 │   └── CICD_USAGE_GUIDE.md   # Guide for using CI/CD pipelines
 ├── modules/                  # Reusable modules
 │   ├── ec2_instance/         # EC2 instance module
-│   └── autoscaling/          # Auto Scaling Group module
+│   ├── autoscaling/          # Auto Scaling Group module
+│   └── secrets_manager/      # AWS Secrets Manager module
 ├── examples/                 # Example configurations
 │   └── complete/             # Complete example with all features
 └── environments/             # Environment-specific configurations
@@ -42,6 +43,7 @@ This repository contains Terraform configurations to deploy EC2 instances on AWS
 - **CI/CD Pipeline**: Automated workflows for validation, security scanning, and deployment
 - **Code Quality**: Automated checks for code formatting and best practices
 - **Security Scanning**: Multiple security scanning tools to identify vulnerabilities
+- **AWS Secrets Manager**: Integration for storing and retrieving sensitive data
 
 ## Prerequisites
 
@@ -49,6 +51,7 @@ This repository contains Terraform configurations to deploy EC2 instances on AWS
 - AWS CLI configured with appropriate credentials
 - S3 bucket for remote state storage
 - DynamoDB table for state locking
+- AWS Secrets Manager permissions (if using Secrets Manager integration)
 
 ## Usage
 
@@ -65,6 +68,45 @@ module "ec2_instance" {
   
   # Right-sizing
   workload_profile = "medium"  # Will use t3.medium or equivalent
+  
+  # Cost tracking tags
+  cost_center   = "IT-123"
+  project       = "Web Application"
+  owner         = "DevOps Team"
+  business_unit = "Engineering"
+}
+```
+
+### Using AWS Secrets Manager for Sensitive Data
+
+```hcl
+module "ec2_instance" {
+  source = "path/to/module"
+
+  instance_name = "web-server"
+  ami_id        = "ami-12345678"
+  subnet_id     = "subnet-12345678"
+  vpc_id        = "vpc-12345678"
+  
+  # Enable AWS Secrets Manager integration
+  use_secrets_manager = true
+  secrets_prefix      = "myapp/"  # Optional prefix for secret names
+  
+  # Specify secret names for sensitive data
+  key_name_secret_name             = "ssh-key-name"
+  user_data_secret_name            = "user-data-script"
+  root_volume_kms_key_id_secret_name = "kms-key-id"
+  
+  # Create secrets if they don't exist (optional)
+  create_secrets = true
+  
+  # Provide values for secrets (only used if create_secrets = true)
+  key_name             = "my-ssh-key"
+  user_data            = file("user-data.sh")
+  root_volume_kms_key_id = "arn:aws:kms:us-west-2:123456789012:key/abcd1234-5678-90ab-cdef-1234567890ab"
+  
+  # Right-sizing
+  workload_profile = "medium"
   
   # Cost tracking tags
   cost_center   = "IT-123"
@@ -108,7 +150,6 @@ module "web_servers" {
   business_unit = "Engineering"
 }
 ```
-
 ## Right-Sizing
 
 The module supports predefined workload profiles to help with right-sizing:
@@ -121,6 +162,80 @@ The module supports predefined workload profiles to help with right-sizing:
 - `memory-optimized`: Suitable for memory-intensive workloads (r5.large or equivalent)
 
 You can also specify custom instance types using the `instance_type` and `override_instance_types` variables.
+
+## AWS Secrets Manager Integration
+
+The module supports AWS Secrets Manager integration for storing and retrieving sensitive data:
+
+- **Key Name**: SSH key pair name
+- **User Data**: EC2 instance user data scripts
+- **KMS Key ID**: KMS key ID for volume encryption
+
+### How to Use Secrets Manager Integration
+
+1. **Enable Secrets Manager Integration**:
+   ```hcl
+   use_secrets_manager = true
+   ```
+
+2. **Specify Secret Names**:
+   ```hcl
+   key_name_secret_name = "ssh-key-name"
+   user_data_secret_name = "user-data-script"
+   root_volume_kms_key_id_secret_name = "kms-key-id"
+   ```
+
+3. **Optional: Add a Prefix to Secret Names**:
+   ```hcl
+   secrets_prefix = "myapp/"  # Results in "myapp/ssh-key-name", etc.
+   ```
+
+4. **Create Secrets (Optional)**:
+   ```hcl
+   create_secrets = true
+   ```
+
+5. **Provide Values for Secrets (Only Used if Creating Secrets)**:
+   ```hcl
+   key_name = "my-ssh-key"
+   user_data = file("user-data.sh")
+   root_volume_kms_key_id = "arn:aws:kms:us-west-2:123456789012:key/abcd1234-5678-90ab-cdef-1234567890ab"
+   ```
+
+### Required IAM Permissions
+
+To use the AWS Secrets Manager integration, the following IAM permissions are required:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:PutSecretValue",
+        "secretsmanager:UpdateSecret",
+        "secretsmanager:TagResource"
+      ],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/ManagedBy": "Terraform"
+        }
+      }
+    }
+  ]
+}
+```
 
 ## Autoscaling
 

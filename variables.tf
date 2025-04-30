@@ -15,6 +15,25 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
+# AWS Secrets Manager variables
+variable "use_secrets_manager" {
+  description = "Whether to use AWS Secrets Manager for sensitive data"
+  type        = bool
+  default     = false
+}
+
+variable "create_secrets" {
+  description = "Whether to create new secrets in AWS Secrets Manager"
+  type        = bool
+  default     = false
+}
+
+variable "secrets_prefix" {
+  description = "Prefix for secret names in AWS Secrets Manager"
+  type        = string
+  default     = ""
+}
+
 variable "workload_profile" {
   description = "Predefined workload profile for right-sizing (small, medium, large, xlarge, compute-optimized, memory-optimized)"
   type        = string
@@ -136,6 +155,12 @@ variable "key_name" {
   default     = null
 }
 
+variable "key_name_secret_name" {
+  description = "Name of the secret in AWS Secrets Manager that contains the key name"
+  type        = string
+  default     = null
+}
+
 variable "associate_public_ip_address" {
   description = "Whether to associate a public IP address with an instance in a VPC"
   type        = bool
@@ -167,8 +192,26 @@ variable "root_volume_encrypted" {
   default     = true
 }
 
+variable "root_volume_kms_key_id" {
+  description = "Amazon Resource Name (ARN) of the KMS Key to use when encrypting the volume"
+  type        = string
+  default     = null
+}
+
+variable "root_volume_kms_key_id_secret_name" {
+  description = "Name of the secret in AWS Secrets Manager that contains the KMS Key ID"
+  type        = string
+  default     = null
+}
+
 variable "user_data" {
   description = "The user data to provide when launching the instance"
+  type        = string
+  default     = null
+}
+
+variable "user_data_secret_name" {
+  description = "Name of the secret in AWS Secrets Manager that contains the user data"
   type        = string
   default     = null
 }

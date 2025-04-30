@@ -46,6 +46,11 @@ locals {
     for key, value in local.cost_allocation_tags : key => value
     if value != null
   }
+  
+  # Secret names with prefix
+  key_name_secret_name = var.key_name_secret_name != null ? "${var.secrets_prefix}${var.key_name_secret_name}" : null
+  user_data_secret_name = var.user_data_secret_name != null ? "${var.secrets_prefix}${var.user_data_secret_name}" : null
+  root_volume_kms_key_id_secret_name = var.root_volume_kms_key_id_secret_name != null ? "${var.secrets_prefix}${var.root_volume_kms_key_id_secret_name}" : null
 }
 
 # Create a security group for the EC2 instance if needed
@@ -108,6 +113,34 @@ resource "aws_security_group" "instance" {
   )
 }
 
+# AWS Secrets Manager modules for retrieving sensitive data
+module "key_name_secret" {
+  source      = "./modules/secrets_manager"
+  count       = var.use_secrets_manager && local.key_name_secret_name != null ? 1 : 0
+  
+  create_secret = var.create_secrets
+  secret_name   = local.key_name_secret_name
+  secret_string = var.create_secrets ? var.key_name : null
+}
+
+module "user_data_secret" {
+  source      = "./modules/secrets_manager"
+  count       = var.use_secrets_manager && local.user_data_secret_name != null ? 1 : 0
+  
+  create_secret = var.create_secrets
+  secret_name   = local.user_data_secret_name
+  secret_string = var.create_secrets ? var.user_data : null
+}
+
+module "root_volume_kms_key_id_secret" {
+  source      = "./modules/secrets_manager"
+  count       = var.use_secrets_manager && local.root_volume_kms_key_id_secret_name != null ? 1 : 0
+  
+  create_secret = var.create_secrets
+  secret_name   = local.root_volume_kms_key_id_secret_name
+  secret_string = var.create_secrets ? var.root_volume_kms_key_id : null
+}
+
 # Use our custom EC2 instance module for single instance deployment
 module "ec2_instance" {
   source = "./modules/ec2_instance"
@@ -118,15 +151,16 @@ module "ec2_instance" {
   instance_type               = local.selected_instance_type
   subnet_id                   = var.subnet_id
   security_group_ids          = var.create_security_group ? concat(var.security_group_ids, [aws_security_group.instance[0].id]) : var.security_group_ids
-  key_name                    = var.key_name
+  key_name                    = var.use_secrets_manager && local.key_name_secret_name != null ? module.key_name_secret[0].secret_value : var.key_name
   associate_public_ip_address = var.associate_public_ip_address
   create_elastic_ip           = var.create_elastic_ip
 
   root_volume_size            = var.root_volume_size
   root_volume_type            = var.root_volume_type
   root_volume_encrypted       = var.root_volume_encrypted
+  root_volume_kms_key_id      = var.use_secrets_manager && local.root_volume_kms_key_id_secret_name != null ? module.root_volume_kms_key_id_secret[0].secret_value : var.root_volume_kms_key_id
 
-  user_data                   = var.user_data
+  user_data                   = var.use_secrets_manager && local.user_data_secret_name != null ? module.user_data_secret[0].secret_value : var.user_data
 
   # IMDSv2 is more secure and recommended by AWS
   metadata_http_tokens        = "required"
@@ -165,7 +199,7 @@ module "autoscaling" {
   instance_type               = local.selected_instance_type
   subnet_ids                  = var.subnet_ids
   security_group_ids          = var.create_security_group ? concat(var.security_group_ids, [aws_security_group.instance[0].id]) : var.security_group_ids
-  key_name                    = var.key_name
+  key_name                    = var.use_secrets_manager && local.key_name_secret_name != null ? module.key_name_secret[0].secret_value : var.key_name
 
   # Right-sizing configuration
   override_instance_types     = local.selected_override_instance_types
@@ -190,8 +224,9 @@ module "autoscaling" {
   root_volume_size            = var.root_volume_size
   root_volume_type            = var.root_volume_type
   root_volume_encrypted       = var.root_volume_encrypted
+  root_volume_kms_key_id      = var.use_secrets_manager && local.root_volume_kms_key_id_secret_name != null ? module.root_volume_kms_key_id_secret[0].secret_value : var.root_volume_kms_key_id
 
-  user_data                   = var.user_data
+  user_data                   = var.use_secrets_manager && local.user_data_secret_name != null ? module.user_data_secret[0].secret_value : var.user_data
 
   # Monitoring
   enable_detailed_monitoring  = var.enable_detailed_monitoring
