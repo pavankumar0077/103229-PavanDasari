@@ -16,12 +16,12 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  
+
   # Optional provider settings
   default_tags {
     tags = {
-      ManagedBy   = "Terraform"
-      Repository  = "terraform-aws-ec2-instance"
+      ManagedBy  = "Terraform"
+      Repository = "terraform-aws-ec2-instance"
     }
   }
 }
